@@ -26,7 +26,7 @@ def update_page_date(page):
     start = page["properties"][DATE_COLUMN_NAME]["date"]["start"]
     start = str(start).split('.')[0]
     body = '{"properties": {"' + DATE_COLUMN_NAME + '": {"date": {"start": "' + start + '","time_zone":"Asia/Shanghai"}}}}'
-    return requests.patch(base_url + "pages/" + page_id, headers=header, data=body)
+    return requests.patch(base_url + "pages/" + page_id, headers=header, data=body.encode('utf-8'))
 
 
 pages = query().json()["results"]
