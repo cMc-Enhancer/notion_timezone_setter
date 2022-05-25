@@ -3,6 +3,7 @@ from json import JSONDecodeError
 import requests
 import properties
 import os
+import concurrent.futures
 
 base_url = "https://api.notion.com/v1/"
 
@@ -30,9 +31,8 @@ def query(start_cursor):
 def update_page_date(page):
     page_id = page["id"]
     start = page["properties"][DATE_COLUMN_NAME]["date"]["start"]
-    current_time_zone = page["properties"][DATE_COLUMN_NAME]["date"]["time_zone"]
 
-    if current_time_zone == "Asia/Shanghai":
+    if str(start).endswith("+08:00"):
         return
 
     start = str(start).split('.')[0]
@@ -49,14 +49,23 @@ def __retry_patch(url, header, body):
     return resp
 
 
-pages = []
-has_more = True
-start_cursor = ""
-while has_more:
-    response = query(start_cursor)
-    has_more = response["has_more"]
-    start_cursor = response["next_cursor"]
-    pages.extend(response["results"])
-for p in pages:
-    response = update_page_date(p)
-    print(update_page_date(p))
+def main():
+    pages = []
+    has_more = True
+    start_cursor = ""
+    while has_more:
+        response = query(start_cursor)
+        has_more = response["has_more"]
+        start_cursor = response["next_cursor"]
+        pages.extend(response["results"])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        future_to_page = {executor.submit(update_page_date, p): p for p in pages}
+        for future in concurrent.futures.as_completed(future_to_page):
+            response = future.result()
+            if response is not None:
+                print(response)
+
+
+if __name__ == '__main__':
+    main()
